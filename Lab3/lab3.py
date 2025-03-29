@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import os
+import seaborn as sns
+import matplotlib.pyplot as plt
 from IPython.display import display
 
 headers = ['Year', 'Week', 'SMN', 'SMT', 'VCI', 'TCI', 'VHI', 'empty']
@@ -34,7 +36,6 @@ def normalize_dataframe(df: pd.DataFrame, i: int) -> None:
     df.insert(1, 'Region', 0)
     df['Region'] = df['RegionID'].map(true_regs_with_indexes)
     dfs.append(df)
-    # display(df)
 
 def parse_csv(path: str) -> pd.DataFrame: 
     for file in os.listdir(path):
@@ -46,7 +47,7 @@ def parse_csv(path: str) -> pd.DataFrame:
 class StreamlitPage():
     def __init__(self: "StreamlitPage", general_df: pd.DataFrame, true_regs: list) -> None:
         self.streamlit_defaults = {
-            'selected_area': true_regs[0],
+            'selected_region': true_regs[0],
             'week_range': (1, 52),
             'year_range': (1982, 2024),
             'sort_data': 'VHI',
@@ -59,19 +60,27 @@ class StreamlitPage():
         st.set_page_config(layout="wide")
         st.title('Vegetation Health stats per region in Ukraine')
         self.initialize_default_streamlit()
-        self.left_column, self.right_column = st.columns([2.7, 1], gap='large')
+        self.left_column, self.right_column = st.columns([3, 1], gap='large')
         self.right_col_setup()
         self.left_col_setup()
 
-    def initialize_default_streamlit(self: "StreamlitPage"):
+    def initialize_default_streamlit(self: "StreamlitPage") -> None:
         for key, value in self.streamlit_defaults.items():
             if key not in st.session_state:
                 st.session_state[key] = value
 
+    def toggle_ascending(self: "StreamlitPage") -> None:
+        if st.session_state['ascending_key']:
+            st.session_state['descending_key'] = False
+
+    def toggle_descending(self: "StreamlitPage") -> None:
+        if st.session_state['descending_key']:
+            st.session_state['ascending_key'] = False
+
     def right_col_setup(self: "StreamlitPage")->None:
         with self.right_column:
             st.selectbox('Sort by', options=self.sort_data, key='sort_data')
-            st.selectbox('Choose region', options=self.true_regs, key="selected_area")
+            st.selectbox('Choose region', options=self.true_regs, key="selected_region")
             st.slider('Week range', min_value=1, max_value=52, key="week_range")
             st.slider('Year range', 1982, 2024, key='year_range')
             
@@ -79,9 +88,9 @@ class StreamlitPage():
             col2: st.delta_generator.DeltaGenerator
             col1, col2 = st.columns(2)
             with col1:
-                st.checkbox('Ascending', key='ascending_key')
+                st.checkbox('Ascending', key='ascending_key', on_change=self.toggle_ascending)
             with col2:
-                st.checkbox('Descending', key='descending_key')
+                st.checkbox('Descending', key='descending_key', on_change=self.toggle_descending)
         
             if st.button('Reset filters'):
                 for key in st.session_state.keys():
@@ -89,12 +98,48 @@ class StreamlitPage():
                 self.initialize_default_streamlit()
                 st.rerun()
     
-    def left_col_setup(self: "StreamlitPage"):
+    def filter_df(self: "StreamlitPage", region_id: int, week_range: tuple, year_range: tuple, sort_data: str, sort_order: bool) -> pd.DataFrame:
+        filtered_df = self.general_df[(region_id==self.general_df['RegionID']) & 
+                                      (self.general_df['Week'].between(week_range[0], week_range[1])) &
+                        (self.general_df['Year'].between(year_range[0], year_range[1]))].sort_values(by=sort_data, ascending = sort_order)
+        filtered_df['Full_date'] = pd.to_datetime(filtered_df['Year'].astype(str) + '-' + filtered_df['Week'].astype(str) + '-0', format="%Y-%W-%w").dt.date
+        return filtered_df[['RegionID', 'Region', 'Year', 'Week', 'Full_date', 'VCI', 'TCI', 'VHI']]
+
+    def filter_compare_df(self: "StreamlitPage", year_range: tuple, compare_data: str) -> pd.DataFrame:
+        filtered_compare_df =  self.general_df[(self.general_df['Year'].between(year_range[0], year_range[1]))][['Region', 'Year', 'Week', compare_data]]
+        return filtered_compare_df.pivot_table(index='Region', 
+                                            columns='Year', 
+                                            values=st.session_state['sort_data'],
+                                            aggfunc='mean')
+
+    def left_col_setup(self: "StreamlitPage") -> None:
         with self.left_column:
-            st.write(self.general_df.head(53))
+            tab1, tab2, tab3 = st.tabs(['Filtered data table', 'Filtered data plot', 'Comparison plot'])
+            filtered_df = self.filter_df(next(region_id for region_id, region_name in true_regs_with_indexes.items() if region_name == 
+                                st.session_state['selected_region']), 
+                                st.session_state['week_range'], 
+                                st.session_state['year_range'],
+                                 st.session_state['sort_data'],  
+                                 True if not st.session_state['ascending_key'] and not st.session_state['descending_key'] else st.session_state['ascending_key'])
+            filtered_compare_df = self.filter_compare_df(st.session_state['year_range'], st.session_state['sort_data'])
+            
+            with tab1:
+                st.dataframe(data=filtered_df[['RegionID', 'Region', 'Year', 'Week', 'VCI', 'TCI', 'VHI']], use_container_width=True)
+            
+            with tab2:
+                st.header(f'Line chart for {st.session_state['selected_region']} region')
+                st.line_chart(data=filtered_df, x='Full_date', y=self.sort_data)
+            
+            with tab3:
+                st.header(f"Heatmap of {st.session_state['sort_data']} for regions "
+                          f"in year range {st.session_state['year_range'][0]}-{st.session_state['year_range'][1]}")
+                fig, ax = plt.subplots(figsize=(15, 15))
+                sns.heatmap(filtered_compare_df, annot=True, cmap="Blues", linewidths=0.5, ax=ax)
+                st.pyplot(fig)
+
 
 def main():
-    general_df = parse_csv("..\\Lab2\\csv_files")
+    general_df: pd.DataFrame = parse_csv("..\\Lab2\\csv_files")
     true_regs = [region for _, region in true_regs_with_indexes.items()]
     StreamlitPage(general_df, true_regs)
 
