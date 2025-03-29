@@ -17,11 +17,12 @@ province_index_dict = {
 true_regs_with_indexes: dict = dict(sorted({region[0]: region[1] for key, region in province_index_dict.items()}.items()))
 dfs: list = []
 
+# Method to change province id based on ukrainian alphabet
 def change_ProvinceID(general_df: pd.DataFrame) -> None:
     replace_dict: dict = {key: value[0] for key, value in province_index_dict.items()}
     general_df['RegionID'] = general_df['RegionID'].replace(replace_dict)
 
-
+# Method to normalize dataframes
 def normalize_dataframe(df: pd.DataFrame, i: int) -> None:
     # dropping NaN values
     df = df.dropna(subset=['VHI']).drop(columns=['empty'])
@@ -37,6 +38,7 @@ def normalize_dataframe(df: pd.DataFrame, i: int) -> None:
     df['Region'] = df['RegionID'].map(true_regs_with_indexes)
     dfs.append(df)
 
+# Method to parse csv files
 def parse_csv(path: str) -> pd.DataFrame: 
     for file in os.listdir(path):
         i = file.split(sep='_')[2]
@@ -44,7 +46,9 @@ def parse_csv(path: str) -> pd.DataFrame:
         normalize_dataframe(df, i)
     return pd.concat(dfs).reset_index(drop=True)
 
+# Class to implement streamlit page
 class StreamlitPage():
+    # Class initializer
     def __init__(self: "StreamlitPage", general_df: pd.DataFrame, true_regs: list) -> None:
         self.streamlit_defaults = {
             'selected_region': true_regs[0],
@@ -54,6 +58,7 @@ class StreamlitPage():
             'ascending_key': False,
             'descending_key': False,
         }
+
         self.sort_data: list = ['VCI', 'TCI', 'VHI']
         self.true_regs = true_regs
         self.general_df = general_df
@@ -64,19 +69,23 @@ class StreamlitPage():
         self.right_col_setup()
         self.left_col_setup()
 
+    # Initialize streamlit session state
     def initialize_default_streamlit(self: "StreamlitPage") -> None:
         for key, value in self.streamlit_defaults.items():
             if key not in st.session_state:
                 st.session_state[key] = value
 
+    # Callback function when "ascending" checkbox is ticked
     def toggle_ascending(self: "StreamlitPage") -> None:
         if st.session_state['ascending_key']:
             st.session_state['descending_key'] = False
 
+    # Callback function when "descending" checkbox is ticked
     def toggle_descending(self: "StreamlitPage") -> None:
         if st.session_state['descending_key']:
             st.session_state['ascending_key'] = False
 
+    # Method to setup right column of the app (interactive part)
     def right_col_setup(self: "StreamlitPage")->None:
         with self.right_column:
             st.selectbox('Sort by', options=self.sort_data, key='sort_data')
@@ -98,6 +107,7 @@ class StreamlitPage():
                 self.initialize_default_streamlit()
                 st.rerun()
     
+    # Method to create filtered dataframe for exact region, week range, year range sorted by sort data in exact sorting order
     def filter_df(self: "StreamlitPage", region_id: int, week_range: tuple, year_range: tuple, sort_data: str, sort_order: bool) -> pd.DataFrame:
         filtered_df = self.general_df[(region_id==self.general_df['RegionID']) & 
                                       (self.general_df['Week'].between(week_range[0], week_range[1])) &
@@ -105,6 +115,7 @@ class StreamlitPage():
         filtered_df['Full_date'] = pd.to_datetime(filtered_df['Year'].astype(str) + '-' + filtered_df['Week'].astype(str) + '-0', format="%Y-%W-%w").dt.date
         return filtered_df[['RegionID', 'Region', 'Year', 'Week', 'Full_date', 'VCI', 'TCI', 'VHI']]
 
+    # Nethod to create filtered dataframe of compare data for all regions to compare in specific year range
     def filter_compare_df(self: "StreamlitPage", year_range: tuple, compare_data: str) -> pd.DataFrame:
         filtered_compare_df =  self.general_df[(self.general_df['Year'].between(year_range[0], year_range[1]))][['Region', 'Year', 'Week', compare_data]]
         return filtered_compare_df.pivot_table(index='Region', 
@@ -112,6 +123,7 @@ class StreamlitPage():
                                             values=st.session_state['sort_data'],
                                             aggfunc='mean')
 
+    # Method to setup the left column with plots and dataframes in separate tabs
     def left_col_setup(self: "StreamlitPage") -> None:
         with self.left_column:
             tab1, tab2, tab3 = st.tabs(['Filtered data table', 'Filtered data plot', 'Comparison plot'])
@@ -137,7 +149,7 @@ class StreamlitPage():
                 sns.heatmap(filtered_compare_df, annot=True, cmap="Blues", linewidths=0.5, ax=ax)
                 st.pyplot(fig)
 
-
+#main method
 def main():
     general_df: pd.DataFrame = parse_csv("..\\Lab2\\csv_files")
     true_regs = [region for _, region in true_regs_with_indexes.items()]
