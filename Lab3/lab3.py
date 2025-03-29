@@ -86,7 +86,7 @@ class StreamlitPage():
             st.session_state['ascending_key'] = False
 
     # Method to setup right column of the app (interactive part)
-    def right_col_setup(self: "StreamlitPage")->None:
+    def right_col_setup(self: "StreamlitPage") -> None:
         with self.right_column:
             st.selectbox('Sort by', options=self.sort_data, key='sort_data')
             st.selectbox('Choose region', options=self.true_regs, key="selected_region")
