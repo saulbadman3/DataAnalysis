@@ -149,7 +149,7 @@ class StreamlitPage():
                 sns.heatmap(filtered_compare_df, annot=True, cmap="Blues", linewidths=0.5, ax=ax)
                 st.pyplot(fig)
 
-#main method
+# main method
 def main():
     general_df: pd.DataFrame = parse_csv("..\\Lab2\\csv_files")
     true_regs = [region for _, region in true_regs_with_indexes.items()]
