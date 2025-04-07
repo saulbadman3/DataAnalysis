@@ -175,3 +175,4 @@ cython_debug/
 
 Lab1/
 *.csv
+household_power_consumption.txt

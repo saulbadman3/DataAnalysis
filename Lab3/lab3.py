@@ -106,6 +106,7 @@ class StreamlitPage():
                     del st.session_state[key]
                 self.initialize_default_streamlit()
                 st.rerun()
+
     
     # Method to create filtered dataframe for exact region, week range, year range sorted by sort data in exact sorting order
     def filter_df(self: "StreamlitPage", region_id: int, week_range: tuple, year_range: tuple, sort_data: str, sort_order: bool) -> pd.DataFrame:
@@ -146,7 +147,7 @@ class StreamlitPage():
                 st.header(f"Heatmap of {st.session_state['sort_data']} for regions "
                           f"in year range {st.session_state['year_range'][0]}-{st.session_state['year_range'][1]}")
                 fig, ax = plt.subplots(figsize=(15, 15))
-                sns.heatmap(filtered_compare_df, annot=True, cmap="Blues", linewidths=0.5, ax=ax)
+                sns.heatmap(filtered_compare_df, annot=False, cmap="Blues", linewidths=0.5, ax=ax)
                 st.pyplot(fig)
 
 # main method
