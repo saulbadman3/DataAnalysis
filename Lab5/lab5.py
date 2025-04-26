@@ -28,7 +28,7 @@ class HarmonyPlot():
             self.noise_line, self.filtered_line = [None] * 5
         self.setup_controls()
 
-
+    # Method to setup the plot
     def setup_plot(self: "HarmonyPlot") -> tuple[plt.Figure, plt.Axes]:
         fig, ax = plt.subplots(figsize=(15, 10))
         plt.subplots_adjust(left=0.1, right=0.85, bottom=0.4, top=0.96)
@@ -39,6 +39,7 @@ class HarmonyPlot():
         ax.grid(True)
         return fig, ax
 
+    # Method to draw checkboxes, button, sliders and plots
     def setup_controls(self: "HarmonyPlot") -> None:
         self.calculate_harmony()
         self.calculate_noise()
@@ -61,17 +62,21 @@ class HarmonyPlot():
         self.ax.legend()
         plt.show()
 
+    # Method to calculate harmony array
     def calculate_harmony(self: "HarmonyPlot") -> None:
         self.harmony: np.ndarray = self.values['amplitude'] \
             * np.sin(self.values['frequency'] * self.timeline + self.values['phase'])
-        
+    
+    # Method to calculate noise array
     def calculate_noise(self: "HarmonyPlot") -> None:
         self.noise: np.ndarray = np.random.normal(self.values['noise_mean'], np.sqrt(self.values['noise_covariance']), len(self.timeline))
-        
+    
+    # Method to calculate filtered harmony
     def calculate_filtered_harmony(self: "HarmonyPlot") -> np.ndarray:
         b, a = scipy.signal.butter(5, self.values["cutoff_freq"] / (0.5 * 1000/(4*np.pi)), btype='low')
         return scipy.signal.filtfilt(b, a, self.harmony+self.noise)
     
+    # Method to update values dict when sliders are moved and recalculate the corresponding array
     def update_value(self: "HarmonyPlot", key: str, val: float) -> None:
         self.values[key] = val
         match key:
@@ -81,6 +86,7 @@ class HarmonyPlot():
                 self.calculate_noise()
         self.update_plots()
 
+    # Method to update the plots based on changed values
     def update_plots(self: "HarmonyPlot") -> None:
         self.harmony_line.set_ydata(self.harmony)
         self.noise_line.set_ydata(self.harmony+self.noise)
@@ -88,6 +94,7 @@ class HarmonyPlot():
         if any(self.checkbox.get_status()):
             self.fig.canvas.draw_idle()  
 
+    # Method to react on checbox press to redraw the plots
     def checkbox_status(self: "HarmonyPlot", event=None) -> None:
         self.harmony_line.set_visible(self.checkbox.get_status()[0])
         self.noise_line.set_visible(self.checkbox.get_status()[1])
@@ -95,6 +102,7 @@ class HarmonyPlot():
         self.fig.canvas.draw_idle()
         self.ax.legend()
 
+    # Method for the reset button
     def reset(self: "HarmonyPlot", event=None) -> None:
         self.checkbox.set_active(0, True)
         self.checkbox.set_active(1, True)
