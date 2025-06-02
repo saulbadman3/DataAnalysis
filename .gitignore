@@ -176,3 +176,11 @@ cython_debug/
 Lab1/
 *.csv
 household_power_consumption.txt
+
+**/*.SAFE/
+sentinel_aws/
+sentinel_cop/
+results/
+
+landsat/
+landsat_results/
